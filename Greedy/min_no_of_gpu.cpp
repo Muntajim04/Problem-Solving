@@ -22,7 +22,6 @@ int getNumOfMinimumGPU(vector<Task> &tasks)
 
     sort(tasks.begin(), tasks.end(), cmp);
 
-    // Min-heap to store the finish times of active tasks
     priority_queue<int, vector<int>, greater<int>> pq;
 
     int maxGPU = 0;
