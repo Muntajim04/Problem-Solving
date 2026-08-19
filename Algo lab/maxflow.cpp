@@ -1,106 +1,96 @@
-// Maximum Flow using Edmonds-Karp algorithm (BFS-based Ford-Fulkerson) in C++
-// Compile: g++ -O2 -std=c++17 maxflow.cpp -o maxflow
+#include <iostream>
+#include <vector>
+#include <queue>
+#include <algorithm>
 
-#include <bits/stdc++.h>
 using namespace std;
 
-class MaxFlow {
-    int n;
-    vector<vector<int>> capacity; // residual capacity matrix
-    vector<vector<int>> adj;      // adjacency list
+const int MAX_NODES = 100; // Adjust based on problem constraints
+const int INF = 1e9;
 
-public:
-    MaxFlow(int n) : n(n), capacity(n, vector<int>(n, 0)), adj(n) {}
+int n; // Number of vertices
+int capacity[MAX_NODES][MAX_NODES]; // Residual capacity matrix
+int parent[MAX_NODES];              // Stores the path found by BFS
 
-    // Add a directed edge u -> v with given capacity.
-    // If the graph is undirected, add both directions with equal capacity.
-    void addEdge(int u, int v, int cap) {
-        capacity[u][v] += cap;   // supports multiple edges between same pair
-        adj[u].push_back(v);
-        adj[v].push_back(u);     // reverse edge (starts with 0 capacity)
+// Standard BFS to check if there is an augmenting path from source (s) to sink (t)
+bool bfs(int s, int t) {
+    // Reset all parent pointers to -1 (unvisited)
+    for (int i = 0; i < n; i++) {
+        parent[i] = -1;
     }
 
-    // BFS to find an augmenting path; returns bottleneck capacity (0 if none)
-    int bfs(int s, int t, vector<int>& parent) {
-        fill(parent.begin(), parent.end(), -1);
-        parent[s] = s;
-        queue<pair<int,int>> q;
-        q.push({s, INT_MAX});
+    queue<int> q;
+    q.push(s);
+    parent[s] = s; // Mark source as visited
 
-        while (!q.empty()) {
-            auto [u, flow] = q.front(); q.pop();
+    while (!q.empty()) {
+        int u = q.front();
+        q.pop();
 
-            for (int v : adj[u]) {
-                if (parent[v] == -1 && capacity[u][v] > 0) {
-                    parent[v] = u;
-                    int newFlow = min(flow, capacity[u][v]);
-                    if (v == t) return newFlow;
-                    q.push({v, newFlow});
-                }
+        for (int v = 0; v < n; v++) {
+            // If node v is not visited and there is remaining capacity
+            if (parent[v] == -1 && capacity[u][v] > 0) {
+                parent[v] = u;
+                if (v == t) return true; // Reached the sink
+                q.push(v);
             }
         }
-        return 0;
     }
+    return false; // No path found
+}
 
-    // Compute max flow from source s to sink t
-    int maxflow(int s, int t) {
-        int flow = 0;
-        vector<int> parent(n);
-        int newFlow;
+// Compute Maximum Flow using Edmonds-Karp
+int maxFlow(int s, int t) {
+    int totalFlow = 0;
 
-        while ((newFlow = bfs(s, t, parent)) != 0) {
-            flow += newFlow;
-            int cur = t;
-            while (cur != s) {
-                int prev = parent[cur];
-                capacity[prev][cur] -= newFlow; // reduce forward capacity
-                capacity[cur][prev] += newFlow; // increase reverse capacity
-                cur = prev;
-            }
+    // While an augmenting path exists from s to t
+    while (bfs(s, t)) {
+        // Step 1: Find the bottleneck (minimum capacity) along the path
+        int pathFlow = INF;
+        for (int v = t; v != s; v = parent[v]) {
+            int u = parent[v];
+            pathFlow = min(pathFlow, capacity[u][v]);
         }
-        return flow;
+
+        // Step 2: Update residual capacities
+        for (int v = t; v != s; v = parent[v]) {
+            int u = parent[v];
+            capacity[u][v] -= pathFlow; // Reduce forward capacity
+            capacity[v][u] += pathFlow; // Increase reverse capacity
+        }
+
+        totalFlow += pathFlow;
     }
-};
+
+    return totalFlow;
+}
 
 int main() {
-    int n, e;
+    int e;
     cout << "Enter number of vertices: ";
     cin >> n;
     cout << "Enter number of edges: ";
     cin >> e;
 
-    MaxFlow mf(n);
+    // Initialize capacity matrix with 0
+    for (int i = 0; i < n; i++) {
+        for (int j = 0; j < n; j++) {
+            capacity[i][j] = 0;
+        }
+    }
 
     cout << "Enter each edge as: u v capacity (0-indexed)\n";
     for (int i = 0; i < e; i++) {
         int u, v, cap;
         cin >> u >> v >> cap;
-        mf.addEdge(u, v, cap);
+        capacity[u][v] += cap; // Handles multiple edges between the same pair
     }
 
     int s, t;
     cout << "Enter source and sink: ";
     cin >> s >> t;
 
-    cout << "\nMaximum Flow: " << mf.maxflow(s, t) << "\n";
+    cout << "\nMaximum Flow: " << maxFlow(s, t) << "\n";
 
     return 0;
 }
-
-/*
-Example:
-6 vertices (0..5), source=0, sink=5
-Edges:
-0 1 16
-0 2 13
-1 2 10
-1 3 12
-2 1 4
-2 4 14
-3 2 9
-3 5 20
-4 3 7
-4 5 4
-
-Expected Max Flow: 23
-*/
